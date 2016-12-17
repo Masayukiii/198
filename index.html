@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<!-- (c)taisukef CC BY  http://fukuno.jig.jp/ -->
+<html>
+<head>
+<meta charset='utf-8'/>
+<title>ちーとばー</title>
+<meta property="og:image" content="ss.jpg">
+<link rel="apple-touch-icon" href="img/icon_hydrant.png"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, target-densitydpi=medium-dpi">
+<meta name="format-detection" content="telephone=no">
+<script src="lib/fukuno.js"></script>
+<script src="lib/gmap.js"></script>
+<script src="lib/odp.js"></script>
+<script>"use strict";
+
+var DEFAULT_ORG;
+
+/*
+http://sabae.club/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=http://fukuno.jig.jp/fukuno-profile-20150609-wafuku2-mini.jpg&chache=no
+http://localhost:8080/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=http://fukuno.jig.jp/fukuno-profile-20150609-wafuku2-mini.jpg&chache=no
+
+http://sabae.club/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=http://ryu-ga-gotoku.com/six/assets/img/cast/kasahara/ss01.jpg
+*/
+var getCircleImageURL = function(url) {
+	console.log(url);
+	return "http://sabae.club/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=" + encodeURIComponent(url);
+};
+
+var watchid;
+var map;
+var supportgps = typeof navigator.geolocation != 'undefined';
+
+var getLL = function(lat, lng) {
+	return new google.maps.LatLng(lat, lng);
+};
+var showNearest = function() {
+	if (supportgps)
+		dir();
+	else
+		setPosition(DEFAULT_ORG, 5);
+};
+
+/* 
+5つ星オープンデータ探しに、SPARQLKnocker、datalist
+http://taisukef.github.io/SPARQLKnocker/
+http://fukuno.jig.jp/app/odp/datalist.html
+*/
+
+var imglist = [
+"34205KANKO2103050001",
+"34205KANKO2103191001",
+"34205KANKO2103342001",
+"34205KANKO2103394001"
+];
+var getCircleIcon = function(data) {
+	if (data.imgurl) {
+//		return makeCircleImage(data.img, 64, 64);
+		if (data.imgurl.indexOf("www.facebook.com") == -1) // facebookのURLはNG
+			return getCircleImageURL(data.imgurl);
+	}
+	return "icon/icon_tourspot.png";
+};
+var icons = {
+			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon },
+	"http://odp.jig.jp/odp/1.0#TourSpot": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon }
+//	"http://purl.org/jrrk#Hydrant": { icon: "img/icon_hydrant.png", name: "消火栓", getIcon: getIconHydrant }
+};
+//var TYPE = "http://odp.jig.jp/odp/1.0#TourSpot";
+			var TYPE = "http://purl.org/jrrk#CivicPOI";
+/*
+translated by
+http://webtranslation.paralink.com/translator/default.asp
+*/
+var CAP = {
+	en: [ "nearest", "find a refuge", "Monument" ],
+	ja: [ "最短", "避難所を探す", "モニュメント" ],
+	es: [ "Más corta", "refugio", "monumento" ],
+	zh: [ "最近", "找到避难所", "纪念碑"  ],
+	ko: [ "가장 가까운", "피난처를 찾아", "기념물" ],
+	de: [ "nächste", "finden Sie einen Unterschlupf", "Denkmal", ],
+	ca: [ "més proper", "trobar un refugi", "monument" ],
+	pt: [ "quase", "finden Sie einen Unterschlupf", "monumento" ],
+	tl: [ "kalapitan", "makahanap ng isang magkubli", "bantayog" ], // タガログ
+	fa: [ "نزديكترين", "نزديكترين", "اثر تاریخی" ], // ペルシャ語
+};
+var trans = function(s) {
+	for (var i = 0; i < CAP.en.length; i++) {
+		if (s == CAP.en[i]) {
+			var lang = getLanguage2();
+			if (CAP[lang] == null)
+				lang = "en";
+			return CAP[lang][i];
+		}
+	}
+	return s;
+};
+var lang = function(s, loadapi) {
+//alert(s);
+	var v = CAP[s];
+	if (v == null)
+		v = CAP["en"];
+//	get("btnf").textContent = trans(get("btnf").textContent);
+//	document.title = v[1];
+	
+	if (loadapi !== false) {
+		document.location.hash = "#" + s;
+		document.location.reload();
+	}
+};
+window.onload = function() {
+	init();
+};
+var init = function() {
+	if (google == null || google.maps == null || google.maps.LatLng == null) {
+		setTimeout(init, 100);
+		return;
+	}
+
+	lang(getLanguage2(), false);
+
+//	DEFAULT_ORG = new google.maps.LatLng(40.392834, -3.723986); // madrid
+//	DEFAULT_ORG = new google.maps.LatLng(35.943352, 136.188597); // sabae st.
+//	DEFAULT_ORG = new google.maps.LatLng(34.834509, 138.177419); // shimada city
+//	DEFAULT_ORG = new google.maps.LatLng(35.691180, 139.701038); // shinjuku st. east
+	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
+	
+
+	
+	map = new google.maps.Map(get("map"), {
+		center: new google.maps.LatLng(36.208823, 138.251953),
+		zoom: 5,
+		mapTypeId: google.maps.MapTypeId.ROADMAP
+//		mapTypeId: google.maps.MapTypeId.HYBRID
+	});
+	
+	/*
+	get('btnp').onclick = function() {
+		if (dislist == null)
+			return;
+		if (currentdislist > 0) {
+			currentdislist--;
+			navigate(dislist[currentdislist].marker);
+		}
+	};
+	get('btnn').onclick = function() {
+		if (dislist == null)
+			return;
+		if (currentdislist < dislist.length - 1) {
+			currentdislist++;
+			navigate(dislist[currentdislist].marker);
+		}
+	};
+	get('btnf').onclick = function() {
+		if (dislist == null) {
+			showNearest();
+			return;
+		}
+		currentdislist = 0;
+		navigate(dislist[currentdislist].marker);
+	};
+	*/
+	
+	markers = [];
+	bounds = new google.maps.LatLngBounds();
+	
+	showNearest();
+};
+var markers;
+var bounds;
+var makeMarkerItem = function(d) {
+	var lat = d.latitude || d.lat;
+	var lng = d.longitude || d.lng;
+	var ll = new google.maps.LatLng(lat, lng);
+	d.pos = ll;
+	bounds.extend(ll);
+	var marker = makeMarker(map, ll, d);
+	markers.push(marker);
+	marker.data = d;
+	google.maps.event.addListener(marker, "click", function(e) {
+//		openInfo(this);
+	});
+	
+	/*
+	var div = create('div');
+	div.textContent = d.name;
+	div.data = d;
+	div.marker = marker;
+	div.onclick = function(e) {
+//		selected(e.srcElement);
+		var d = this.data;
+		var lat = d.latitude || d.lat;
+		var lng = d.longitude || d.lng;
+		map.setCenter(new google.maps.LatLng(lat, lng));
+		map.setZoom(17);
+		openInfo(e.srcElement.marker);
+	};
+	get('list').appendChild(div);
+	*/
+	return marker;
+};
+var clearMarkers = function() {
+	for (var i = 0; i < markers.length; i++) {
+		markers[i].setMap(null);
+	}
+};
+
+var lines;
+
+/*
+画像をSPARQLで取得
+画像を丸くくり抜く
+*/
+
+
+var poslog = [];
+
+var loadData = function(ll, funcnext) {
+//	currentpos = ll = getLL(35.903508,136.168782);
+
+	clearMarkers();
+	
+	var dll = 0.01;
+	var lat = ll.lat();
+	var lng = ll.lng();
+	var latmin = lat - dll;
+	var latmax = lat + dll;
+	var lngmin = lng - dll;
+	var lngmax = lng + dll;
+	
+	var q =
+		"prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
+		"prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
+		"prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>\n" +
+		"prefix jrrk: <http://purl.org/jrrk#>\n" +
+		"prefix odp: <http://odp.jig.jp/odp/1.0#>\n" +
+		"prefix ic: <http://imi.ipa.go.jp/ns/core/rdf#>\n" +
+		"prefix schema: <http://schema.org/>\n" +
+		"select ?s ?name ?nameen ?lat ?lng ?graph ?address ?imgurl {\n" + 
+			"graph ?graph {\n" + 
+				"?s rdf:type <" + TYPE + ">;\n" +
+				"rdfs:label ?name;\n" +
+//				"odp:classified ?classified;\n" + 
+				"geo:lat ?lat;\n" +
+				"geo:long ?lng.\n" +
+				"optional { ?s rdfs:label ?nameen. filter(lang(?nameen) = 'en') }\n" +
+				"optional { ?s jrrk:address ?address. }\n" +
+//				"optional { ?s <http://schema.org/image> ?imgurl. }\n" +
+				"optional { ?s ic:画像 ?imgurl. }\n" +
+	
+				"filter(?lat < " + latmax + " && ?lat > " + latmin + " && ?lng < " + lngmax + " && ?lng > " + lngmin + ")\n" +
+				"filter(lang(?name) = 'ja')\n" +
+			"}\n" +
+		"}";
+//	prompt(q);
+	querySPARQL(q, function(data) {
+//		dump(data);
+		var items = data.results.bindings;
+//		alert(items.length); // 全データ3894 全種データ集まっている2568 2016.12.9
+		
+		data = [];
+		for (var i = 0; i < items.length; i++) {
+			var d = {};
+			d.type = TYPE;
+			var it = items[i];
+			for (var n in it) {
+				d[n] = it[n].value;
+				if (n == "lat" || n == "lng") {
+					d[n] = parseFloat(d[n]);
+				}
+			}
+			data.push(d);
+		}
+
+		var lat = currentpos.lat();
+		var lng = currentpos.lng();
+		sortData(data, lat, lng);
+
+		lines = [];
+		bounds = new google.maps.LatLngBounds();
+		for (var i = 0; i < data.length; i++) {
+			var d = data[i];
+			
+//			console.log(i, lat, lng, d.lat, d.lng);
+			var sw = rnd(8) + 4;
+//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
+			var linecol = [ "#ff3333" ]; //, "#33ffff", "#3333ff" ];
+			
+			var line = new google.maps.Polyline({
+				path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
+				geodesic: true,
+				strokeColor: linecol[rnd(linecol.length)],
+				strokeOpacity: 1.0,
+				strokeWeight: sw
+			});
+			line.sw = sw;
+			line.setMap(map);
+			lines.push(line);
+			
+			var marker = makeMarkerItem(d);
+			var ll = new google.maps.LatLng(d.lat, d.lng);
+			bounds.extend(ll);
+			
+			var makeLines = function(e) {
+				var d = this.data;
+				
+				var lat = d.lat;
+				var lng = d.lng;
+				sortData(data, lat, lng);
+				var cnt = 3;
+				bounds = new google.maps.LatLngBounds();
+				bounds.extend(new google.maps.LatLng(d.lat, d.lng));
+				for (var i = 1; i < data.length; i++) {
+					var d = data[i];
+					if (containsPosLog(d))
+						continue;
+					if (cnt-- == 0)
+						break;
+					
+					var sw = rnd(8) + 4;
+		//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
+					var linecol = [ "#33FF33" ]; //, "#33ffff", "#3333ff" ];
+					
+//					console.log(i + " " + d.name + " " + d.lat + " " + d.lng + " " + lat + " " + lng);
+
+					var line = new google.maps.Polyline({
+						path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
+						geodesic: true,
+						strokeColor: linecol[rnd(linecol.length)],
+						strokeOpacity: 1.0,
+						strokeWeight: sw
+					});
+					line.sw = sw;
+					line.setMap(map);
+					lines.push(line);
+					
+					var marker = makeMarkerItem(d);
+					bounds.extend(new google.maps.LatLng(d.lat, d.lng));
+					google.maps.event.addListener(marker, "click", makeLines);
+					
+					poslog.push(marker);
+				}
+				map.fitBounds(bounds);
+			};
+			
+			google.maps.event.addListener(marker, "click", makeLines);
+			
+			poslog.push(marker);
+			
+			if (i > 2)
+				break;
+		}
+		if (data.length > 0)
+			map.fitBounds(bounds);
+		
+		var nt = 0;
+		setInterval(function() {
+			for (var i = 0; i < lines.length; i++) {
+				var l = lines[i];
+				var n = l.sw + Math.cos(Math.PI * 2 / 20 * nt) * l.sw / 5;
+				l.setOptions({ strokeWeight: n });
+			}
+			nt++;
+		}, 100);
+		
+		funcnext();
+	});
+};
+var containsPosLog = function(data) {
+	for (var i = 0; i < poslog.length; i++) {
+		if (poslog[i].data.s == data.s)
+			return true;
+	}
+	return false;
+};
+var sortData = function(data, lat, lng) {
+	for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		d.distance = getDistance(lat, lng, d.lat, d.lng);
+	}
+	data.sort(function(a, b) {
+		return a.distance - b.distance;
+	});
+	return data;
+};
+var getDistance = function(lat1, lng1, lat2, lng2) {
+	var dlat = (lat2 - lat1) * Math.PI / 180;
+	var dlng = (lng2 - lng1) * Math.PI / 180;
+	var a = Math.sin(dlat / 2) * Math.sin(dlat / 2)
+		+ Math.cos(lat1 * Math.PI / 180)
+		* Math.cos(lat2 * Math.PI / 180)
+		* Math.sin(dlng / 2) * Math.sin(dlng / 2);
+	return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 6371; // 6371 = R of the Earth in km
+};
+
+var getNearPosition = function(lat, lng) {
+	if (markers == null)
+		return null;
+	var len = 100000000; // 100,000,000m
+	var n = -1;
+	for (var i = 0; i < markers.length; i++) {
+		var m = markers[i];
+		var p = m.getPosition();
+		var d = getDistance(lat, lng, p.lat(), p.lng());
+		if (d < len) {
+			len = d;
+			n = i;
+		}
+	}
+	if (n < 0)
+		return null;
+	get('info').innerHTML = getContent(markers[n].data);
+	return markers[n].getPosition();
+};
+var dislist;
+var currentdislist;
+var calcDistanceList = function(lat, lng) {
+	if (markers == null)
+		return false;
+	var len = 100000000; // 100,000,000m
+	dislist = [];
+	for (var i = 0; i < markers.length; i++) {
+		var m = markers[i];
+		var p = m.getPosition();
+		var d = getDistance(lat, lng, p.lat(), p.lng());
+		dislist[i] = { marker: m, distance: d };
+	}
+	for (var i = 0; i < dislist.length - 1; i++) {
+		for (var j = i; j < dislist.length; j++) {
+			if (dislist[i].distance > dislist[j].distance) {
+				var tmp = dislist[i];
+				dislist[i] = dislist[j];
+				dislist[j] = tmp;
+			}
+		}
+	}
+	return true;
+};
+var navigate = function(marker) {
+	get('info').innerHTML = getContent(marker.data);
+	directions(currentpos, marker.getPosition());
+	openInfo(marker);
+};
+var getDistance = function(lat1, lng1, lat2, lng2) {
+	var dlat = (lat2 - lat1) * Math.PI / 180;
+	var dlng = (lng2 - lng1) * Math.PI / 180;
+	var a = Math.sin(dlat / 2) * Math.sin(dlat / 2)
+		+ Math.cos(lat1 * Math.PI / 180)
+		* Math.cos(lat2 * Math.PI / 180)
+		* Math.sin(dlng / 2) * Math.sin(dlng / 2);
+	return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 6371; // 6371 = R of the Earth in km
+};
+var jptel = function(tel) {
+	if (tel.startsWith("+81-")) {
+		return "0" + tel.substring(4);
+	}
+	return tel;
+};
+var getName = function(data) {
+	var lang = getLanguage2();
+	var s = data.name;
+	if (lang != "ja" && lang != "zh" && data.nameen != null && data.nameen != "null")
+		s = data.nameen;
+	var n = s.lastIndexOf("@@");
+	if (n > 0)
+		s = s.substring(0, n);
+	return s;
+};
+var searchImage = function(name) {
+	return "https://www.google.co.jp/search?q=image&q=" + encodeURIComponent(name);
+};
+var getContent = function(data) {
+	var pos = data.pos;
+	var mapurl = "http://maps.google.co.jp/maps?ll=" + pos.lat() + "," + pos.lng();
+	var s = [];
+	s.push("<div id='data'>");
+	
+	s.push("<div>" + trans(icons[data.type].name) + "</div>");
+	s.push("<div id='title'>" + getName(data) + "</div>");
+	if (data.coverage)
+		s.push("使用可能エリア: " + data.coverage + "<br>");
+	if (data.hours)
+		s.push("使用可能時間: " + data.hours + "<br>");
+	if (data.plugs)
+		s.push("電源: " + data.plugs + "<br>");
+//	s.push("[<a href='" + data.seealso + "' target=_blank>seeAlso</a>] [<a href=" + searchImage(getName(data)) + " target=_blank>img search</a>]</br>");
+/*	s.push(data.address + "<br>"); */
+	s.push("MAP <a href='" + mapurl + "' target=_blank>" + pos.lat() + "," + pos.lng() + "</a><br>");
+//	if (data.classified)
+//		s.push("種別：" + decodeURIComponent(data.classified) + "<br>");
+	if (data.address)
+		s.push("住所：" + decodeURIComponent(data.address) + "<br>");
+	if (data.incharge)
+		s.push("担当課：" + decodeURIComponent(data.incharge) + "<br>");
+	if (data.diameter)
+		s.push("直径：" + decodeURIComponent(data.diameter) + "mm<br>");
+	if (data.s)
+		s.push("<a href='" + data.s + "' target=_blank>DATA on odp</a><br>");
+//	s.push("DATA <a href='" + data.url + "' target=_blank>" + data.url + "</a><br>");
+//	debug(data.graph);
+	if (data.graph.startsWith("http://odp.jig.jp/rdf/jp/fukui/sabae/")) {
+		s.push("※<a href=http://www.city.sabae.fukui.jp/pageview.html?id=10525 target=_blank>鯖江市公衆WiFi</a>: sabaewifi / sabae12345678");
+	}
+	s.push("</div>");
+	return s.join('');
+};
+var makeMarker = function(map, pos, data) {
+	var opb = [ "A", "ff3300" ];
+	var op = opb;
+	var icon = icons[data.type].icon;
+	if (icons[data.type].getIcon) {
+		icon = icons[data.type].getIcon(data);
+	}
+	return new google.maps.Marker({
+		position: pos,
+		map: map,
+		draggable: false,
+//		animation: google.maps.Animation.DROP,
+//		icon: 'http://chart.apis.google.com/chart?chst=d_map_pin_letter&chld=' + op[0] + '|' + op[1] + '|000000'
+		icon: new google.maps.MarkerImage(
+			//'icon/icon-exit2.png',
+			icon,
+			new google.maps.Size(128, 128),
+			new google.maps.Point(0, 0),
+			new google.maps.Point(24, 24),
+			new google.maps.Size(48, 48)
+		)
+/*
+		icon: new google.maps.MarkerImage(
+			'icon-heart.png',
+			new google.maps.Size(32, 32),
+			new google.maps.Point(0, 0),
+			new google.maps.Point(16, 16)
+		)
+*/
+	});
+};
+var openInfo = function(marker) {
+	if (map.info != null) {
+		map.info.close();
+		if (map.info.marker == marker) {
+			map.info = null;
+			return;
+		}
+	}
+	map.info = new google.maps.InfoWindow({
+		content: getContent(marker.data),
+//		position: marker.pos,
+		pixelOffset: new google.maps.Size(-40, 20)
+	});
+	google.maps.event.addListener(map.info, "closeclick", function() {
+		map.info = null;
+	});
+	map.info.marker = marker;
+	map.info.open(map, marker);
+//	map.info.open(map);
+};
+var currentpos;
+var findNear = function() {
+	/*
+	var near = getNearPosition(currentpos.lat(), currentpos.lng());
+	if (near == null)
+		setTimeout(findNear, 100);
+	else
+		directions(currentpos, near);
+	*/
+	var b = calcDistanceList(currentpos.lat(), currentpos.lng());
+	if (!b)
+		setTimeout(findNear, 100);
+	else {
+		if (dislist.length > 0) {
+			currentdislist = 0;
+			navigate(dislist[currentdislist].marker);
+		}
+	}
+};
+var setPosition = function(ll, accuracy) {
+	map.setCenter(ll);
+	map.setZoom(19);
+	
+	new google.maps.Circle({
+		map: map,
+		center: ll,
+		fillColor: "#3333ff",
+		fillOpacity: .2,
+		strokeWeight: 0,
+//		strokeColor: "#3333ff",
+//		strokeOpacity: 1,
+//		strokeWeight: 2,
+		radius: accuracy
+	});
+	
+	currentpos = ll;
+	
+	loadData(ll, function() {
+//		findNear();
+	});
+}
+var dir = function() {
+	if (watchid != null) {
+		navigator.geolocation.clearWatch(watchid);
+	}
+	watchid = navigator.geolocation.watchPosition(function(p) {
+		navigator.geolocation.clearWatch(watchid);
+		watchid = null;
+		var lat = p.coords.latitude;
+		var lng = p.coords.longitude;
+		var ll = getLL(lat, lng);
+		setPosition(ll, p.coords.accuracy);
+	}, function(e) {
+		setPosition(DEFAULT_ORG, 5);
+		alert("check GPS settings");
+	}, {
+		maximumAge: 30000,
+		enableHighAccuracy: 1
+	});
+};
+var directionsRenderer;
+var directions = function(org, dest) {
+	if (directionsRenderer != null) {
+		directionsRenderer.setMap(null);
+		directionsRenderer.setPanel(null);
+	}
+	directionsRenderer = new google.maps.DirectionsRenderer();
+	directionsRenderer.setMap(map);
+	directionsRenderer.setPanel(get('route'));
+	var dirs = new google.maps.DirectionsService();
+	var request = {
+		origin: org,
+		destination: dest,
+//		travelMode: google.maps.DirectionsTravelMode.WALKING,
+//		travelMode: google.maps.DirectionsTravelMode.BICYCLING,
+//		travelMode: google.maps.DirectionsTravelMode.DRIVING,
+		travelMode: google.maps.DirectionsTravelMode.TRANSIT,
+		unitSystem: google.maps.DirectionsUnitSystem.METRIC,
+		provideRouteAlternatives: false // another route
+	};
+	dirs.route(request, function(response, status) {
+		if (status == google.maps.DirectionsStatus.OK) {
+			directionsRenderer.setDirections(response);
+		} else {
+//			get('route').textContent = "";
+		}
+	});
+}
+
+var getLanguage2 = function() {
+	var lang = getLanguage();
+	var hash = document.location.hash;
+	if (hash.length > 2) {
+		lang = hash.substring(1);
+	}
+	return lang;
+};
+//
+var makeCircleImage = function(img, w, h) {
+	var canvas = create("canvas");
+	canvas.width = w;
+	canvas.height = h;
+	var g = canvas.getContext("2d");
+//		g.fillStyle = bgcolor;
+	g.fillRect(0, 0, w, h);
+	if (img.width > img.height) {
+		var r = img.height / h;
+		g.drawImage(img, 0, 0, img.width, img.height, (w - img.width / r) / 2, 0, img.width / r, h);
+	} else {
+		var r = img.width / w;
+		g.drawImage(img, 0, 0, img.width, img.height, 0, (h - img.height / r) / 2, w, img.height / r);
+	}
+	var data = g.getImageData(0, 0, w, h);
+	var r = w / 2;
+	for (var i = 0; i < w; i++) {
+		for (var j = 0; j < h; j++) {
+			var dx = i - r;
+			var dy = j - r;
+			if (dx * dx + dy * dy > r * r) {
+				data.data[(i + j * w) * 4 + 3] = 0x0;
+//					data.data[(i + j * w) * 4 + 2] = 0x0;
+//					data.data[(i + j * w) * 4 + 1] = 0x0;
+//					data.data[(i + j * w) * 4 + 0] = 0x0;
+			} else {
+//					data.data[(i + j * w) * 4 + 1] = 0xff;
+			}
+		}
+	}
+	g.putImageData(data, 0, 0);
+	var data = canvas.toDataURL("image/png");
+	return data;
+};
+
+
+//
+loadLocalAPI();
+
+</script>
+<style>
+body {
+	margin: 0px;
+	text-align: center;
+	box-sizing: border-box; /* width include border */
+	-webkit-text-size-adjust: none; /* for iPhone */
+}
+#map {
+	width: 100%;
+	height: 360px;
+}
+#debug {
+	text-align: left;
+}
+#route {
+}
+#info {
+	text-align: center;
+	margin: 0.5em;
+}
+#data {
+	text-align: left;
+	word-wrap: break-word;
+}
+#data #title {
+	font-size: 120%;
+	font-weight: bold;
+	margin: 0px;
+}
+.nbtn {
+	font-size: 14px;
+	line-height: 24px;
+	height: 30px;
+	width: 90px;
+	border: none;
+	margin: 4px;
+	background-color: #afb;
+}
+#tname {
+	font-size: 20px;
+	padding-left: 14px;
+}
+.src {
+	margin: 1em;
+	font-size: 80%;
+}
+.langs {
+	margin: 10px 0px 10px 0px;
+}
+.langs a {
+	color: gray !important;
+	text-decoration: none;
+}
+.src a {
+	color: gray !important;
+	text-decoration: none;
+}
+.pr {
+	font-size: 90%;
+}
+.pr a {
+	color: #88f !important;
+	text-decoration: none;
+}
+#comdiv {
+	margin-bottom: 100px;
+}
+#comment {
+	margin: 10px 80px 10px 10px;
+	border: 5px solid gray;
+	padding: 20px;
+	text-align: left;
+	font-size: 180%;
+}
+#ose {
+	
+}
+</style>
+</head>
+<body>
+
+<div id='main'>
+
+<div id='navi'>
+<div id='map'></div>
+
+<div id="comdiv">
+<img src=icon/icon_woman.png width=64 style="float:right;margin-top:20px;margin-right:10px">
+<div id="comment">Welcome to ONOMICHI!</div>
+</div>
+
+<!--
+<button class='nbtn' id='btnp'>&lt;&lt;</button>
+<button class='nbtn' id='btnf'>nearest</button>
+<button class='nbtn' id='btnn'>&gt;&gt;</button>
+<div id="info"></div>
+-->
+
+</div>
+
+<!--
+
+<div id="route"></div>
+
+
+</div>
+
+<div class="langs">
+<a href=javascript:lang("en")>English</a>,
+<a href=javascript:lang("es")>Spanish</a>,
+<a href=javascript:lang("tl")>Tagalog</a>,
+<a href=javascript:lang("pt")>Português</a>,
+<a href=javascript:lang("de")>Deutsch</a>,
+<a href=javascript:lang("ca")>català</a>,
+<a href=javascript:lang("fa")>فارسى‎</a>,
+<a href=javascript:lang("ko")>한국어</a>,
+<a href=javascript:lang("zh")>中国語</a>,
+<a href=javascript:lang("ja")>日本語</a>
+</div>
+-->
+
+<div class="src">
+APP: <a href=http://creativecommons.org/licenses/by/4.0/ target=_blank>CC BY</a> <a href=https://github.com/Masayukiii/198 target=_blank>team E</a><br>
+SPARQL: <a href=http://sparql.odp.jig.jp/ target=_blank>odp</a><br>
+<a href=https://github.com/Masayukiii/198>ソースコード on GitHub</a><br>
+要望はこちら <a href=https://github.com/Masayukiii/198/issues>Issues on GitHub</a><br>
+fork歓迎、プルリクエストもお気軽に！<br>
+</div>
+
+</body>
+</html>

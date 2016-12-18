@@ -199,11 +199,11 @@ var makeMarkerItem = function(d) {
 	google.maps.event.addListener(marker, "click", function(e) {
 //		openInfo(this);
 //		get("caption").innerHTML = getContent(this.data);
-//		if (this.data.desc) {
+		if (this.data.desc) {
 			get("comment").innerHTML = this.data.desc + " 島にはヒミツがあるかも。";
-//		} else {
-//			get("comment").innerHTML = "「" + this.data.name + "」です。向島に、イイコトあるよ。渡船は100円！";
-//		}
+		} else {
+			get("comment").innerHTML = "「" + this.data.name + "」です。向島に、イイコトあるよ。渡船は100円！";
+		}
 	});
 	
 	/*

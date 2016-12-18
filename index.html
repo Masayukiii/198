@@ -29,6 +29,7 @@ var getCircleImageURL = function(url) {
 var watchid;
 var map;
 var supportgps = typeof navigator.geolocation != 'undefined';
+supportgps = false;
 
 var getLL = function(lat, lng) {
 	return new google.maps.LatLng(lat, lng);
@@ -116,8 +117,8 @@ var init = function() {
 //	DEFAULT_ORG = new google.maps.LatLng(35.943352, 136.188597); // sabae st.
 //	DEFAULT_ORG = new google.maps.LatLng(34.834509, 138.177419); // shimada city
 //	DEFAULT_ORG = new google.maps.LatLng(35.691180, 139.701038); // shinjuku st. east
-	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
-	
+//	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
+	DEFAULT_ORG = new google.maps.LatLng(34.408389, 133.203267); // onomichi share
 
 	
 	map = new google.maps.Map(get("map"), {

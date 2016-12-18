@@ -22,7 +22,7 @@ http://localhost:8080/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=http://fukuno
 http://sabae.club/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=http://ryu-ga-gotoku.com/six/assets/img/cast/kasahara/ss01.jpg
 */
 var getCircleImageURL = function(url) {
-	console.log(url);
+//	console.log(url);
 	return "http://sabae.club/proxy/ITqT5WkhCf2yn1s9?cnv=png-circle-64&url=" + encodeURIComponent(url);
 };
 
@@ -56,8 +56,8 @@ var getCircleIcon = function(data) {
 	return "icon/icon_tourspot.png";
 };
 var icons = {
-"pop": { icon: "icon/icon_spot.png" },
-			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon },
+"pop": { icon: "icon/icon_spot.png", getIcon: getCircleIcon },
+			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_spot.png", name: "観光地", xgetIcon: getCircleIcon },
 	"http://odp.jig.jp/odp/1.0#TourSpot": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon }
 //	"http://purl.org/jrrk#Hydrant": { icon: "img/icon_hydrant.png", name: "消火栓", getIcon: getIconHydrant }
 };
@@ -199,6 +199,11 @@ var makeMarkerItem = function(d) {
 	google.maps.event.addListener(marker, "click", function(e) {
 //		openInfo(this);
 //		get("caption").innerHTML = getContent(this.data);
+//		if (this.data.desc) {
+			get("comment").innerHTML = this.data.desc + " 島にはヒミツがあるかも。";
+//		} else {
+//			get("comment").innerHTML = "「" + this.data.name + "」です。向島に、イイコトあるよ。渡船は100円！";
+//		}
 	});
 	
 	/*
@@ -235,6 +240,118 @@ var lines;
 
 var poslog = [];
 var postemp = [];
+
+var showLines = function(data) {
+	var lat = currentpos.lat();
+	var lng = currentpos.lng();
+	sortData(data, lat, lng);
+
+	lines = [];
+	bounds = new google.maps.LatLngBounds();
+	for (var i = 0; i < data.length; i++) {
+		var d = data[i];
+		
+//			console.log(i, lat, lng, d.lat, d.lng);
+		var sw = rnd(8) + 4;
+//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
+		var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
+		
+		var line = new google.maps.Polyline({
+			path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
+			geodesic: true,
+			strokeColor: linecol[rnd(linecol.length)],
+			strokeOpacity: 1.0,
+			strokeWeight: sw
+		});
+		line.sw = sw;
+		line.setMap(map);
+		lines.push(line);
+		
+		var marker = makeMarkerItem(d);
+		marker.line = line;
+		var ll = new google.maps.LatLng(d.lat, d.lng);
+		bounds.extend(ll);
+		
+		var makeLines = function() {
+			var d = this.data;
+			
+			var lat = d.lat;
+			var lng = d.lng;
+			sortData(data, lat, lng);
+			var cnt = 3;
+			bounds = new google.maps.LatLngBounds();
+			bounds.extend(new google.maps.LatLng(d.lat, d.lng));
+			poslog.push(this);
+			var postemp2 = [];
+//			alert(data.length + " " + poslog.length + " " + postemp.length);
+			for (var i = 1; i < data.length; i++) {
+				var d = data[i];
+				if (containsPos(poslog, d))
+					continue;
+//				console.log(i + " " + d.name + " " + d.lat + " " + d.lng + " " + lat + " " + lng);
+				if (containsPos(postemp, d))
+					continue;
+				if (cnt-- == 0)
+					break;
+				
+				
+				var sw = rnd(8) + 4;
+	//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
+				var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
+				
+
+				var line = new google.maps.Polyline({
+					path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
+					geodesic: true,
+					strokeColor: linecol[rnd(linecol.length)],
+					strokeOpacity: 1.0,
+					strokeWeight: sw
+				});
+				line.sw = sw;
+				line.setMap(map);
+				lines.push(line);
+				
+				var marker = makeMarkerItem(d);
+				
+				bounds.extend(new google.maps.LatLng(d.lat, d.lng));
+				marker.line = line;
+				google.maps.event.addListener(marker, "click", makeLines);
+				
+				postemp2.push(marker);
+
+			}
+			map.fitBounds(bounds);
+			for (var i = 0; i < postemp.length; i++) {
+				var m = postemp[i];
+				if (m == this)
+					continue;
+				m.line.setMap(null);
+				m.setMap(null);
+			}
+			this.line.setOptions({ strokeOpacity: 0.3 });
+			postemp = postemp2;
+		};
+		
+		google.maps.event.addListener(marker, "click", makeLines);
+		
+		postemp.push(marker);
+		
+		if (i > 2)
+			break;
+	}
+	if (data.length > 0)
+		map.fitBounds(bounds);
+	
+	var nt = 0;
+	setInterval(function() {
+		for (var i = 0; i < lines.length; i++) {
+			var l = lines[i];
+			var n = l.sw + Math.cos(Math.PI * 2 / 20 * nt) * l.sw / 5;
+			l.setOptions({ strokeWeight: n });
+		}
+		nt++;
+	}, 100);
+};
 
 var loadData = function(ll, funcnext) {
 //	currentpos = ll = getLL(35.903508,136.168782);
@@ -279,6 +396,7 @@ var loadData = function(ll, funcnext) {
 		var items = data.results.bindings;
 //		alert(items.length); // 全データ3894 全種データ集まっている2568 2016.12.9
 		
+		/*
 		data = [];
 		for (var i = 0; i < items.length; i++) {
 			var d = {};
@@ -291,137 +409,50 @@ var loadData = function(ll, funcnext) {
 				}
 			}
 			data.push(d);
+			makeMarkerItem(d);
 		}
-
-		var lat = currentpos.lat();
-		var lng = currentpos.lng();
-		sortData(data, lat, lng);
-
-		lines = [];
-		bounds = new google.maps.LatLngBounds();
-		for (var i = 0; i < data.length; i++) {
-			var d = data[i];
-			
-//			console.log(i, lat, lng, d.lat, d.lng);
-			var sw = rnd(8) + 4;
-//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
-			var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
-			
-			var line = new google.maps.Polyline({
-				path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
-				geodesic: true,
-				strokeColor: linecol[rnd(linecol.length)],
-				strokeOpacity: 1.0,
-				strokeWeight: sw
-			});
-			line.sw = sw;
-			line.setMap(map);
-			lines.push(line);
-			
-			var marker = makeMarkerItem(d);
-			marker.line = line;
-			var ll = new google.maps.LatLng(d.lat, d.lng);
-			bounds.extend(ll);
-			
-			var makeLines = function(e) {
-				var d = this.data;
-				
-				var lat = d.lat;
-				var lng = d.lng;
-				sortData(data, lat, lng);
-				var cnt = 3;
-				bounds = new google.maps.LatLngBounds();
-				bounds.extend(new google.maps.LatLng(d.lat, d.lng));
-				poslog.push(this);
-				var postemp2 = [];
-				for (var i = 1; i < data.length; i++) {
-					var d = data[i];
-					if (containsPos(poslog, d))
-						continue;
-					if (containsPos(postemp, d))
-						continue;
-					if (cnt-- == 0)
-						break;
-					
-					var sw = rnd(8) + 4;
-		//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
-					var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
-					
-//					console.log(i + " " + d.name + " " + d.lat + " " + d.lng + " " + lat + " " + lng);
-
-					var line = new google.maps.Polyline({
-						path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
-						geodesic: true,
-						strokeColor: linecol[rnd(linecol.length)],
-						strokeOpacity: 1.0,
-						strokeWeight: sw
-					});
-					line.sw = sw;
-					line.setMap(map);
-					lines.push(line);
-					
-					var marker = makeMarkerItem(d);
-					bounds.extend(new google.maps.LatLng(d.lat, d.lng));
-					google.maps.event.addListener(marker, "click", makeLines);
-					marker.line = line;
-					
-					postemp2.push(marker);
-//					postemp.push(marker);
-				}
-				map.fitBounds(bounds);
-				for (var i = 0; i < postemp.length; i++) {
-					var m = postemp[i];
-					if (m == this)
-						continue;
-					m.line.setMap(null);
-					m.setMap(null);
-				}
-				this.line.setOptions({ strokeOpacity: 0.3 });
-				postemp = postemp2;
-			};
-			
-			google.maps.event.addListener(marker, "click", makeLines);
-			
-			postemp.push(marker);
-			
-			if (i > 2)
-				break;
-		}
-		if (data.length > 0)
-			map.fitBounds(bounds);
+		*/
 		
-		var nt = 0;
-		setInterval(function() {
-			for (var i = 0; i < lines.length; i++) {
-				var l = lines[i];
-				var n = l.sw + Math.cos(Math.PI * 2 / 20 * nt) * l.sw / 5;
-				l.setOptions({ strokeWeight: n });
-			}
-			nt++;
-		}, 100);
+		
+		/*
+		showLines();
 		
 		funcnext();
+		*/
 	});
 	
 //	var url = "http://localhost:8080/fukunojigjp/app/198/popular2.csv";
-	var url = "https://masayukiii.github.io/198/popular2.csv";
+//	var url = "https://masayukiii.github.io/198/popular2.csv";
+	var url = "https://masayukiii.github.io/198/bestonomichikai.csv";
+//	var url = "http://localhost:8080/fukunojigjp/app/198/bestonomichi.csv";
 	getCSV(url, function(data) {
 //		dump(data);
-		for (var i = 1; i < data.length; i++) {
+		var data2 = [];
+		for (var i = 2; i < data.length; i++) {
 			var d = data[i];
 			var item = {
-				name: d[0] + "(" + d[2] + ")",
-				lat: d[16],
-				lng: d[17],
-				desc: d[18]
+				s: d[0],
+				name: d[1], // + "(" + d[2] + ")",
+				p_jp: d[10],
+				p_en: d[11],
+				lat: d[12],
+				lng: d[13],
+				imgurl: d[26],
+				desc: d[24]
 			};
-			if (item.lat && item.lng) {
+			if (!item.desc) {
+				item.desc = "渡船は100円で夜10時半までやってるよ";
+			}
+			if (item.name && item.lat && item.lng) {
 				item.lat = parseFloat(item.lat);
 				item.lng = parseFloat(item.lng);
 				item.type = "pop";
-				makeMarkerItem(item);
+//				makeMarkerItem(item);
+				data2.push(item);
 			}
 		}
+		showLines(data2);
+//		dump(data2);
 	});
 };
 var containsPos = function(poslog, data) {

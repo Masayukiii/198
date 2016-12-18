@@ -56,6 +56,7 @@ var getCircleIcon = function(data) {
 	return "icon/icon_tourspot.png";
 };
 var icons = {
+"pop": { icon: "icon/icon_spot.png" },
 			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon },
 	"http://odp.jig.jp/odp/1.0#TourSpot": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon }
 //	"http://purl.org/jrrk#Hydrant": { icon: "img/icon_hydrant.png", name: "消火栓", getIcon: getIconHydrant }
@@ -377,6 +378,27 @@ var loadData = function(ll, funcnext) {
 		
 		funcnext();
 	});
+	
+//	var url = "http://localhost:8080/fukunojigjp/app/198/popular.csv";
+	var url = "https://masayukiii.github.io/198/popular.csv";
+	getCSV(url, function(data) {
+//		dump(data);
+		for (var i = 1; i < data.length; i++) {
+			var d = data[i];
+			var item = {
+				name: d[0] + "(" + d[2] + ")",
+				lat: d[16],
+				lng: d[17],
+				desc: d[18]
+			};
+			if (item.lat && item.lng) {
+				item.lat = parseFloat(item.lat);
+				item.lng = parseFloat(item.lng);
+				item.type = "pop";
+				makeMarkerItem(item);
+			}
+		}
+	});
 };
 var containsPos = function(poslog, data) {
 	for (var i = 0; i < poslog.length; i++) {
@@ -510,7 +532,7 @@ var getContent = function(data) {
 		s.push("<a href='" + data.s + "' target=_blank>DATA on odp</a><br>");
 //	s.push("DATA <a href='" + data.url + "' target=_blank>" + data.url + "</a><br>");
 //	debug(data.graph);
-	if (data.graph.startsWith("http://odp.jig.jp/rdf/jp/fukui/sabae/")) {
+	if (data.graph && data.graph.startsWith("http://odp.jig.jp/rdf/jp/fukui/sabae/")) {
 		s.push("※<a href=http://www.city.sabae.fukui.jp/pageview.html?id=10525 target=_blank>鯖江市公衆WiFi</a>: sabaewifi / sabae12345678");
 	}
 	s.push("</div>");
@@ -700,6 +722,50 @@ var makeCircleImage = function(img, w, h) {
 	return data;
 };
 
+//
+var getCSV = function(url, callback) {
+	getHTTP(url, function(data) {
+		var ss = data.split('\n');
+		var list = [];
+		for (var i = 0; i < ss.length; i++) {
+			var ss2 = ss[i].split(',');
+			list.push(ss2);
+		}
+		callback(list);
+	});
+};
+var getTSV = function(url, callback) {
+	getHTTP(url, function(data) {
+		var ss = data.split('\n');
+		var list = [];
+		for (var i = 0; i < ss.length; i++) {
+			var ss2 = ss[i].split('\t');
+			list.push(ss2);
+		}
+		callback(list);
+	});
+};
+var getHTTP = function(url, callback) {
+	var xhr = new XMLHttpRequest();
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState == 4) {
+			if (xhr.status == 0) {
+				alert("通信に失敗しました。再読込してください。");
+			} else {
+				if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304) {
+					//alert("受信:" + xhr.responseText);
+					callback(xhr.responseText);
+				} else {
+					alert("通信に失敗しました。再読込してください。<br>" + xhr.status);
+				}
+			}
+		}
+	};
+	xhr.open("GET" , url);
+	var senddata = null; // "送信テスト";
+	xhr.overrideMimeType('text/html;charset=Shift_JIS'); // for SJIS
+	xhr.send(senddata);
+};
 
 //
 loadLocalAPI();

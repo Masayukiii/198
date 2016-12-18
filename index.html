@@ -103,8 +103,32 @@ var lang = function(s, loadapi) {
 		document.location.reload();
 	}
 };
+var baa = true;
 window.onload = function() {
 	init();
+	onresize();
+	google.maps.event.addDomListener(window, 'resize', function() {
+		var ll = map.getCenter();
+		google.maps.event.trigger(map, "resize");
+		map.panTo(ll);
+	});
+	get("menu1").onclick = function() {
+		baa = !baa;
+		onresize();
+	};
+	get("menu2").onclick = function() {
+		alert("スポットを自分でも追加できる予定");
+	};
+	get("menu3").onclick = function() {
+//		alert("現在位置へ戻る予定");
+		map.panTo(currentpos);
+	};
+	get("menu4").onclick = function() {
+		alert("検索できる予定");
+	};
+	get("menu5").onclick = function() {
+		alert("尾道しまおこしハッカソン\n2016.12.17-18\nby チーム 198");
+	};
 };
 var init = function() {
 	if (google == null || google.maps == null || google.maps.LatLng == null) {
@@ -174,7 +198,7 @@ var makeMarkerItem = function(d) {
 	marker.data = d;
 	google.maps.event.addListener(marker, "click", function(e) {
 //		openInfo(this);
-		get("caption").innerHTML = getContent(this.data);
+//		get("caption").innerHTML = getContent(this.data);
 	});
 	
 	/*
@@ -281,7 +305,7 @@ var loadData = function(ll, funcnext) {
 //			console.log(i, lat, lng, d.lat, d.lng);
 			var sw = rnd(8) + 4;
 //			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
-			var linecol = [ "#ff3333" ]; //, "#33ffff", "#3333ff" ];
+			var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
 			
 			var line = new google.maps.Polyline({
 				path: [ { lat: lat, lng: lng }, { lat: d.lat, lng: d.lng } ],
@@ -321,7 +345,7 @@ var loadData = function(ll, funcnext) {
 					
 					var sw = rnd(8) + 4;
 		//			var linecol = [ "#ff3333", "#33ffff", "#3333ff" ];
-					var linecol = [ "#33FF33" ]; //, "#33ffff", "#3333ff" ];
+					var linecol = [ "#f8da5b" ]; //, "#33ffff", "#3333ff" ];
 					
 //					console.log(i + " " + d.name + " " + d.lat + " " + d.lng + " " + lat + " " + lng);
 
@@ -768,6 +792,23 @@ var getHTTP = function(url, callback) {
 };
 
 //
+var onresize = function() {
+//console.log(foot.posTop + " " + window.innerHeight + " " + foot.height + " " + foot.clientHeight);
+	foot.style.top = (window.innerHeight - foot.clientHeight) + "px";
+	if (baa) {
+		get("footcommenticon").style.display = "block";
+		get("comment").style.display = "block";
+		get("comment").style.top = (window.innerHeight - foot.clientHeight - comment.clientHeight) + "px";
+		get("map").style.height = (window.innerHeight - foot.clientHeight - head.clientHeight - comment.clientHeight) + "px";
+	} else {
+		get("footcommenticon").style.display = "none";
+		get("comment").style.display = "none";
+		get("map").style.height = (window.innerHeight - foot.clientHeight - head.clientHeight) + "px";
+	}
+};
+window.addEventListener("resize", onresize);
+
+//
 loadLocalAPI();
 
 </script>
@@ -840,11 +881,17 @@ body {
 	margin-bottom: 10px;
 }
 #comment {
-	margin: 10px 80px 10px 10px;
-	border: 5px solid gray;
-	padding: 20px;
+	position: absolute;
+	background: white;
+	border-top: solid 4px #2e93b9;
+	x-margin: 10px 80px 10px 10px;
+	x-border: 5px solid gray;
+	padding: 10px;
 	text-align: left;
-	font-size: 180%;
+	width: 100%;
+	height: 4em;
+	overflow: scroll;
+	font-size: 120%;
 }
 #ose {
 	
@@ -853,21 +900,52 @@ body {
 	padding: 20px;
 	margin-bottom: 100px;
 }
+#head {
+	height: 10px;
+	background-color: #2e93b9;
+}
+#foot {
+	position: absolute;
+	width: 100%;
+	z-index: 10;
+	background-color: #2e93b9;
+	padding-top: 6px;
+}
+#footcommenticon {
+	position: absolute;
+	top: 0px;
+	left: 12%;
+	width: 5%;
+}
+.footicon {
+	width: 17%;
+}
+/*
+ベースカラー　#2e93b9
+線の色　#f8da5b
+アクセントカラー　#fd5a59
+*/
 </style>
 </head>
 <body>
 
 <div id='main'>
 
+<div id="head"></div>
 <div id='navi'>
 <div id='map'></div>
 
+<!--
 <div id="comdiv">
 <img src=icon/icon_woman.png width=64 style="float:right;margin-top:20px;margin-right:10px">
 <div id="comment">Welcome to ONOMICHI!</div>
 </div>
+-->
+<div id="comment">Welcome to ONOMICHI!</div>
 
+<!--
 <div id="caption"></div>
+-->
 
 </div>
 
@@ -891,6 +969,15 @@ body {
 </div>
 -->
 
+<div id="foot">
+<img src=images/sankaku.png id="footcommenticon">
+<img src=images/icon_02.png id="menu1" class="footicon">
+<img src=images/icon_03.png id="menu2" class="footicon">
+<img src=images/icon_04.png id="menu3" class="footicon">
+<img src=images/icon_05.png id="menu4" class="footicon">
+<img src=images/icon_06.png id="menu5" class="footicon"></div>
+
+<!--
 <div class="src">
 APP: <a href=http://creativecommons.org/licenses/by/4.0/ target=_blank>CC BY</a> <a href=https://github.com/Masayukiii/198 target=_blank>team E</a><br>
 SPARQL: <a href=http://sparql.odp.jig.jp/ target=_blank>odp</a><br>
@@ -898,6 +985,8 @@ SPARQL: <a href=http://sparql.odp.jig.jp/ target=_blank>odp</a><br>
 要望はこちら <a href=https://github.com/Masayukiii/198/issues>Issues on GitHub</a><br>
 fork歓迎、プルリクエストもお気軽に！<br>
 </div>
+-->
+
 
 </body>
 </html>

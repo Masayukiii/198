@@ -57,7 +57,7 @@ var getCircleIcon = function(data) {
 };
 var icons = {
 "pop": { icon: "icon/icon_spot.png", getIcon: getCircleIcon },
-			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_spot.png", name: "観光地", xgetIcon: getCircleIcon },
+			"http://purl.org/jrrk#CivicPOI": { icon: "icon/icon_spot.png", name: "観光地", getIcon: getCircleIcon },
 	"http://odp.jig.jp/odp/1.0#TourSpot": { icon: "icon/icon_tourspot.png", name: "観光地", getIcon: getCircleIcon }
 //	"http://purl.org/jrrk#Hydrant": { icon: "img/icon_hydrant.png", name: "消火栓", getIcon: getIconHydrant }
 };
@@ -142,8 +142,8 @@ var init = function() {
 //	DEFAULT_ORG = new google.maps.LatLng(35.943352, 136.188597); // sabae st.
 //	DEFAULT_ORG = new google.maps.LatLng(34.834509, 138.177419); // shimada city
 //	DEFAULT_ORG = new google.maps.LatLng(35.691180, 139.701038); // shinjuku st. east
-//	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
-	DEFAULT_ORG = new google.maps.LatLng(34.408389, 133.203267); // onomichi share
+	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
+//	DEFAULT_ORG = new google.maps.LatLng(34.408389, 133.203267); // onomichi share
 
 	
 	map = new google.maps.Map(get("map"), {
@@ -396,7 +396,6 @@ var loadData = function(ll, funcnext) {
 		var items = data.results.bindings;
 //		alert(items.length); // 全データ3894 全種データ集まっている2568 2016.12.9
 		
-		/*
 		data = [];
 		for (var i = 0; i < items.length; i++) {
 			var d = {};
@@ -409,9 +408,9 @@ var loadData = function(ll, funcnext) {
 				}
 			}
 			data.push(d);
-			makeMarkerItem(d);
+//			makeMarkerItem(d);
 		}
-		*/
+		showLines(data);
 		
 		
 		/*
@@ -420,6 +419,8 @@ var loadData = function(ll, funcnext) {
 		funcnext();
 		*/
 	});
+	return;
+	
 	
 //	var url = "http://localhost:8080/fukunojigjp/app/198/popular2.csv";
 //	var url = "https://masayukiii.github.io/198/popular2.csv";

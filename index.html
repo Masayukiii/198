@@ -46,12 +46,6 @@ http://taisukef.github.io/SPARQLKnocker/
 http://fukuno.jig.jp/app/odp/datalist.html
 */
 
-var imglist = [
-"34205KANKO2103050001",
-"34205KANKO2103191001",
-"34205KANKO2103342001",
-"34205KANKO2103394001"
-];
 var getCircleIcon = function(data) {
 	if (data.imgurl) {
 //		return makeCircleImage(data.img, 64, 64);
@@ -178,6 +172,7 @@ var makeMarkerItem = function(d) {
 	marker.data = d;
 	google.maps.event.addListener(marker, "click", function(e) {
 //		openInfo(this);
+		get("caption").innerHTML = getContent(this.data);
 	});
 	
 	/*
@@ -213,6 +208,7 @@ var lines;
 
 
 var poslog = [];
+var postemp = [];
 
 var loadData = function(ll, funcnext) {
 //	currentpos = ll = getLL(35.903508,136.168782);
@@ -297,6 +293,7 @@ var loadData = function(ll, funcnext) {
 			lines.push(line);
 			
 			var marker = makeMarkerItem(d);
+			marker.line = line;
 			var ll = new google.maps.LatLng(d.lat, d.lng);
 			bounds.extend(ll);
 			
@@ -309,9 +306,13 @@ var loadData = function(ll, funcnext) {
 				var cnt = 3;
 				bounds = new google.maps.LatLngBounds();
 				bounds.extend(new google.maps.LatLng(d.lat, d.lng));
+				poslog.push(this);
+				var postemp2 = [];
 				for (var i = 1; i < data.length; i++) {
 					var d = data[i];
-					if (containsPosLog(d))
+					if (containsPos(poslog, d))
+						continue;
+					if (containsPos(postemp, d))
 						continue;
 					if (cnt-- == 0)
 						break;
@@ -336,15 +337,26 @@ var loadData = function(ll, funcnext) {
 					var marker = makeMarkerItem(d);
 					bounds.extend(new google.maps.LatLng(d.lat, d.lng));
 					google.maps.event.addListener(marker, "click", makeLines);
+					marker.line = line;
 					
-					poslog.push(marker);
+					postemp2.push(marker);
+//					postemp.push(marker);
 				}
 				map.fitBounds(bounds);
+				for (var i = 0; i < postemp.length; i++) {
+					var m = postemp[i];
+					if (m == this)
+						continue;
+					m.line.setMap(null);
+					m.setMap(null);
+				}
+				this.line.setOptions({ strokeOpacity: 0.3 });
+				postemp = postemp2;
 			};
 			
 			google.maps.event.addListener(marker, "click", makeLines);
 			
-			poslog.push(marker);
+			postemp.push(marker);
 			
 			if (i > 2)
 				break;
@@ -365,7 +377,7 @@ var loadData = function(ll, funcnext) {
 		funcnext();
 	});
 };
-var containsPosLog = function(data) {
+var containsPos = function(poslog, data) {
 	for (var i = 0; i < poslog.length; i++) {
 		if (poslog[i].data.s == data.s)
 			return true;
@@ -698,6 +710,7 @@ body {
 	text-align: center;
 	box-sizing: border-box; /* width include border */
 	-webkit-text-size-adjust: none; /* for iPhone */
+	font-family: 游ゴシック体, 'Yu Gothic', YuGothic, 'ヒラギノ角ゴシック Pro', 'Hiragino Kaku Gothic Pro', メイリオ, Meiryo, Osaka, 'ＭＳ Ｐゴシック', 'MS PGothic', sans-serif;
 }
 #map {
 	width: 100%;
@@ -757,7 +770,7 @@ body {
 	text-decoration: none;
 }
 #comdiv {
-	margin-bottom: 100px;
+	margin-bottom: 10px;
 }
 #comment {
 	margin: 10px 80px 10px 10px;
@@ -768,6 +781,10 @@ body {
 }
 #ose {
 	
+}
+#caption {
+	padding: 20px;
+	margin-bottom: 100px;
 }
 </style>
 </head>
@@ -783,21 +800,15 @@ body {
 <div id="comment">Welcome to ONOMICHI!</div>
 </div>
 
-<!--
-<button class='nbtn' id='btnp'>&lt;&lt;</button>
-<button class='nbtn' id='btnf'>nearest</button>
-<button class='nbtn' id='btnn'>&gt;&gt;</button>
-<div id="info"></div>
--->
+<div id="caption"></div>
+
+</div>
+
 
 </div>
 
 <!--
 
-<div id="route"></div>
-
-
-</div>
 
 <div class="langs">
 <a href=javascript:lang("en")>English</a>,

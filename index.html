@@ -6,7 +6,7 @@
 <title>ちーとばー</title>
 <meta property="og:image" content="ss.jpg">
 <link rel="apple-touch-icon" href="icon.png"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, target-densitydpi=medium-dpi">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
 <meta name="format-detection" content="telephone=no">
 <script src="lib/fukuno.js"></script>
 <script src="lib/gmap.js"></script>
@@ -217,7 +217,8 @@ var makeMarkerItem = function(d) {
 		if (this.data.desc) {
 			s += this.data.desc;
 		}
-		get("comment").innerHTML = s;
+		comment.innerHTML = s;
+		comment.scrollTop = 0;
 	});
 	
 	/*
@@ -292,7 +293,7 @@ var showLines = function(data) {
 			var lat = d.lat;
 			var lng = d.lng;
 			sortData(data, lat, lng);
-			var cnt = 3;
+			var cnt = 4;
 			bounds = new google.maps.LatLngBounds();
 			bounds.extend(new google.maps.LatLng(d.lat, d.lng));
 			poslog.push(this);
@@ -403,6 +404,7 @@ var loadData = function(ll, funcnext) {
 	
 				"filter(?lat < " + latmax + " && ?lat > " + latmin + " && ?lng < " + lngmax + " && ?lng > " + lngmin + ")\n" +
 				"filter(lang(?name) = 'ja')\n" +
+				"filter(lang(?desc) = 'ja')\n" +
 			"}\n" +
 		"}";
 //	prompt(q);

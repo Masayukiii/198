@@ -117,14 +117,14 @@ window.onload = function() {
 		onresize();
 	};
 	get("menu2").onclick = function() {
-		alert("スポットを自分でも追加できる予定");
+		alert("スポット追加機能\ncomming soon!");
 	};
 	get("menu3").onclick = function() {
 //		alert("現在位置へ戻る予定");
 		map.panTo(currentpos);
 	};
 	get("menu4").onclick = function() {
-		alert("検索できる予定");
+		alert("検索機能\ncomming soon!");
 	};
 	get("menu5").onclick = function() {
 		alert("尾道しまおこしハッカソン\n2016.12.17-18\nby チーム 198\n利用オープンデータ：公共クラウド 観光オープンデータ");
@@ -137,14 +137,28 @@ var init = function() {
 	}
 
 	lang(getLanguage2(), false);
-
+	
+	var hash = document.location.hash;
+	if (hash.length > 0) {
+		var n = hash.indexOf(',');
+		var lat = parseFloat(hash.substring(1, n));
+		var lng = parseFloat(hash.substring(n + 1));
+		DEFAULT_ORG = new google.maps.LatLng(lat, lng);
+	} else {
+		if (confirm("現在位置を取得しますか？（キャンセルで尾道駅を基点としたデモになります）")) {
+			var whereami = "https://codeforfukui.github.io/whereami/#";
+//			var thisurl = "http://localhost:8080/fukunojigjp/app/198/#"; // for debug
+			var thisurl = "https://masayukiii.github.io/198/#";
+			window.location.href = whereami + thisurl;
+		} else {
 //	DEFAULT_ORG = new google.maps.LatLng(40.392834, -3.723986); // madrid
 //	DEFAULT_ORG = new google.maps.LatLng(35.943352, 136.188597); // sabae st.
 //	DEFAULT_ORG = new google.maps.LatLng(34.834509, 138.177419); // shimada city
 //	DEFAULT_ORG = new google.maps.LatLng(35.691180, 139.701038); // shinjuku st. east
 	DEFAULT_ORG = new google.maps.LatLng(34.404733, 133.193671); // onomichi st.
 //	DEFAULT_ORG = new google.maps.LatLng(34.408389, 133.203267); // onomichi share
-
+		}
+	}
 	
 	map = new google.maps.Map(get("map"), {
 		center: new google.maps.LatLng(36.208823, 138.251953),
@@ -198,12 +212,12 @@ var makeMarkerItem = function(d) {
 	marker.data = d;
 	google.maps.event.addListener(marker, "click", function(e) {
 //		openInfo(this);
-//		get("caption").innerHTML = getContent(this.data);
+//		get("caption").innerHTML = getContent(this.data); 
+		var s = "「" + this.data.name + "」だよ。"; // 。向島に、イイコトあるよ。渡船は100円！"
 		if (this.data.desc) {
-			get("comment").innerHTML = this.data.desc + " 島にはヒミツがあるかも。";
-		} else {
-			get("comment").innerHTML = "「" + this.data.name + "」です。向島に、イイコトあるよ。渡船は100円！";
+			s += this.data.desc;
 		}
+		get("comment").innerHTML = s;
 	});
 	
 	/*
@@ -374,7 +388,7 @@ var loadData = function(ll, funcnext) {
 		"prefix odp: <http://odp.jig.jp/odp/1.0#>\n" +
 		"prefix ic: <http://imi.ipa.go.jp/ns/core/rdf#>\n" +
 		"prefix schema: <http://schema.org/>\n" +
-		"select ?s ?name ?nameen ?lat ?lng ?graph ?address ?imgurl {\n" + 
+		"select ?s ?name ?nameen ?desc ?lat ?lng ?graph ?address ?imgurl {\n" + 
 			"graph ?graph {\n" + 
 				"?s rdf:type <" + TYPE + ">;\n" +
 				"rdfs:label ?name;\n" +
@@ -385,6 +399,7 @@ var loadData = function(ll, funcnext) {
 				"optional { ?s jrrk:address ?address. }\n" +
 //				"optional { ?s <http://schema.org/image> ?imgurl. }\n" +
 				"optional { ?s ic:画像 ?imgurl. }\n" +
+				"optional { ?s ic:説明 ?desc. }\n" + 
 	
 				"filter(?lat < " + latmax + " && ?lat > " + latmin + " && ?lng < " + lngmax + " && ?lng > " + lngmin + ")\n" +
 				"filter(lang(?name) = 'ja')\n" +
